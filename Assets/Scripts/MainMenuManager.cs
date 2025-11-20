@@ -3,51 +3,35 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
+
 public class MainMenuManager : MonoBehaviour
 {
+    // Guardem la dificultat seleccionada
+    public static int selectedDifficulty = 0;  
+    // 0=Easy, 1=Medium, 2=Hard
+
     [SerializeField] private TextMeshProUGUI label;
     [SerializeField] private TextMeshProUGUI labelBtn;
     [SerializeField] private AudioClip audioClip;
-    // Start is called before the first frame update
+
     void Start()
     {
-        label.text = "Hola món";
-        labelBtn.text = "Press me";
         
     }
 
-    // Update is called once per frame
-    void Update()
+    public void SelectDifficulty(int d)
     {
-        
+        selectedDifficulty = d;
+        Debug.Log("Dificultat seleccionada: " + d);
     }
-    
+
     public void onClickButton()
     {
-        Debug.Log("Hola món");
-        //SceneManager.LoadScene("GameScene");
+        Debug.Log("Iniciant partida...");
+
         AudioSource source = GetComponent<AudioSource>();
         source.PlayOneShot(audioClip);
-        
 
-    }
-
-    public void onValueChange(string value)
-    {
-        Debug.Log("el contingut és:"+ value);
-    }
-    
-    public void onValueChange2()
-    {
-        Debug.Log("el contingut és:");
-    }
-    
-    public void OnToogleClicked(bool flag)
-    {
-        if (flag)
-        {
-            Debug.Log("click ");    
-        }
-        
+        SceneManager.LoadScene("GameScene");
     }
 }

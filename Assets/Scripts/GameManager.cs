@@ -1,125 +1,217 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 public class GameManager : MonoBehaviour
 {
     public GameObject prefabToken;
-    
     public int rows = 4;
     public int cols = 4;
-    public float spacing = 2f; // Espacio entre tokens
+    public float spacing = 2.5f; // Ajusta segons mida fitxa
 
-    public GameObject[,] tokens; // Array 2D para guardar los tokens
-
+    public GameObject[,] tokens;
     public Material[] materials;
-    
+
     private int numTokensOpened;
     private string token1Name;
     private string token2Name;
+
+    private int pairsFound = 0;
+
+    private bool revealUsed = false;
+    private bool blockClicks = false;
+
+    [Header("Sound Effects")]
+    public AudioClip sfxClick;
+    public AudioClip sfxMatch;
+    public AudioClip sfxFail;
+    public AudioClip sfxWin;
+    public AudioClip sfxNewRecord;
+
+    private AudioSource audioSource;
+
+    [Header("End Panel")]
+    public GameObject endPanel;
+    public TextMeshProUGUI timeText;
+    public TextMeshProUGUI attemptsText;
+    public TextMeshProUGUI bestScoreText;
+
     void Start()
     {
+        // Ajustar dificultat
+        int diff = MainMenuManager.selectedDifficulty;
+        switch (diff)
+        {
+            case 0: rows = 2; cols = 3; break;
+            case 1: rows = 4; cols = 4; break;
+            case 2: rows = 4; cols = 6; break;
+        }
+
         numTokensOpened = 0;
         tokens = new GameObject[rows, cols];
 
-        // Coordenada inicial (puedes ajustarla según tu escena)
-        Vector3 startPos = new Vector3(-((cols - 1) * spacing) / 2, 0, ((rows - 1) * spacing) / 2 );
+        // Crear llistat de materials (parelles)
+        int totalTokens = rows * cols;
+        int numPairs = totalTokens / 2;
+        List<Material> listMaterials = new List<Material>();
+
+        for (int i = 0; i < numPairs; i++)
+        {
+            listMaterials.Add(materials[i]);
+            listMaterials.Add(materials[i]);
+        }
+
+        // Shuffle
+        for (int i = 0; i < listMaterials.Count; i++)
+        {
+            int rnd = Random.Range(0, listMaterials.Count);
+            Material temp = listMaterials[i];
+            listMaterials[i] = listMaterials[rnd];
+            listMaterials[rnd] = temp;
+        }
+
+        // Generar tauler
+        Vector3 startPos = new Vector3(
+            -((cols - 1) * spacing) / 2f,
+            0,
+            ((rows - 1) * spacing) / 2f
+        );
+
         int indexM = 0;
+
         for (int i = 0; i < rows; i++)
         {
             for (int j = 0; j < cols; j++)
             {
-                Vector3 pos = startPos + new Vector3(j * spacing * 1.25f, 0, -i * spacing );
-                GameObject o = Instantiate(prefabToken, pos, Quaternion.identity);
+                Vector3 pos = startPos + new Vector3(j * spacing, 0, -i * spacing);
+                GameObject o = Instantiate(prefabToken, pos, Quaternion.identity, this.transform);
                 o.name = $"Token_{i}_{j}";
-                o.GetComponent<Token>().mr.material = materials[indexM];
-                indexM = (indexM + 1) % materials.Length; 
+
+                // Assignar material i animador
+                Token t = o.GetComponent<Token>();
+                t.mr.material = listMaterials[indexM];
+                indexM++;
+
                 tokens[i, j] = o;
             }
         }
+
+        // Inici cronòmetre
+        HUDManager.instance.StartTimer();
+        audioSource = GetComponent<AudioSource>();
     }
 
     public void TokenPressed(string name)
     {
-        
+        if (blockClicks) return;
+
         if (numTokensOpened < 2)
         {
-       
             if (numTokensOpened == 0)
             {
                 token1Name = name;
-                //dir-li al token que es mostri
             }
             else if (numTokensOpened == 1)
             {
-                if (token1Name == name)
-                {
-                    return;
-                }
+                if (token1Name == name) return;
                 token2Name = name;
-                
             }
 
             Token token = GetTokenByName(name);
             token.ShowToken();
-            
+            audioSource.PlayOneShot(sfxClick);
+
             numTokensOpened++;
-            Debug.Log("Tokens opened: " + numTokensOpened);
-            
-            
         }
 
         if (numTokensOpened == 2)
         {
-            //si hem obert dos tokens aleshores posar timer en marxa:
-            Invoke("CheckTokens", 2.0f);
+            HUDManager.instance.AddAttempt();
+            Invoke("CheckTokens", 1.2f); // temps perquè es vegi el gir
             numTokensOpened = 3;
         }
-        
-       
-        
     }
 
-    private  Token GetTokenByName(string name)
+    private Token GetTokenByName(string name)
     {
-        int i, j; ////a partir del nom obtenim els valors de i,j
         string[] parts = name.Split('_');
-        i = int.Parse(parts[1]);
-        j = int.Parse(parts[2]);
+        int i = int.Parse(parts[1]);
+        int j = int.Parse(parts[2]);
         return tokens[i, j].GetComponent<Token>();
     }
 
-    public void CheckTokens()
+    private void CheckTokens()
     {
         Token t1 = GetTokenByName(token1Name);
         Token t2 = GetTokenByName(token2Name);
 
-        Debug.Log(t1.mr.material.name);
-        Debug.Log(t2.mr.material.name);
         if (t1.mr.material.name == t2.mr.material.name)
         {
             t1.MatchToken();
             t2.MatchToken();
+            audioSource.PlayOneShot(sfxMatch);
+            pairsFound++;
+
+            if (pairsFound == (rows * cols) / 2)
+                EndGame();
         }
         else
         {
             t1.HideToken();
             t2.HideToken();
+            audioSource.PlayOneShot(sfxFail);
         }
-        
-      
-
 
         numTokensOpened = 0;
+    }
 
-    }
-   
-    public void Update()
+    private void EndGame()
     {
-       
-       
+        HUDManager.instance.StopTimer();
+        float currentTime = HUDManager.instance.GetTime();
+        float bestBefore = HUDManager.instance.GetBestScore();
+        HUDManager.instance.SaveBestScore(currentTime);
+
+        if (currentTime < bestBefore)
+            audioSource.PlayOneShot(sfxNewRecord);
+        else
+            audioSource.PlayOneShot(sfxWin);
+
+        // Panell final
+        if (endPanel != null)
+        {
+            endPanel.SetActive(true);
+            timeText.text = "Time: " + currentTime.ToString("F2") + "s";
+            attemptsText.text = "Attempts: " + HUDManager.instance.GetAttempts();
+            bestScoreText.text = "Best: " + HUDManager.instance.GetBestScore().ToString("F2") + "s";
+        }
+
+        blockClicks = true;
     }
-    
-    
+
+    // Reveal All (una vegada per partida)
+    private IEnumerator RevealCoroutine()
+    {
+        blockClicks = true;
+        foreach (GameObject t in tokens)
+        {
+            if (t != null)
+                t.GetComponent<Token>().ShowToken();
+        }
+        yield return new WaitForSeconds(1f);
+        foreach (GameObject t in tokens)
+        {
+            if (t != null)
+                t.GetComponent<Token>().HideToken();
+        }
+        blockClicks = false;
+    }
+
+    public void RevealAll()
+    {
+        if (revealUsed) return;
+        revealUsed = true;
+        StartCoroutine(RevealCoroutine());
+    }
 }

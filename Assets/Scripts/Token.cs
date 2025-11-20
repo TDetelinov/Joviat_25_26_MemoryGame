@@ -1,24 +1,34 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Token : MonoBehaviour
 {
     private GameManager gameManager;
     public MeshRenderer mr;
-    // Start is called before the first frame update
+    public Animator animator;
+
+    private bool isOpened = false;
+
+    void Awake()
+    {
+        if (mr == null)
+        {
+            mr = GetComponent<MeshRenderer>();
+            if (mr == null)
+                mr = GetComponentInChildren<MeshRenderer>();
+        }
+
+        if (animator == null)
+            animator = GetComponent<Animator>();
+    }
+
     void Start()
     {
         GameObject o = GameObject.FindGameObjectWithTag("GameManager");
-        gameManager = o.GetComponent<GameManager>();
+        if (o != null)
+            gameManager = o.GetComponent<GameManager>();
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-    
     void OnMouseDown()
     {
         gameManager.TokenPressed(gameObject.name);
@@ -26,14 +36,22 @@ public class Token : MonoBehaviour
 
     public void ShowToken()
     {
-        transform.Rotate(Vector3.right, 180);
+        if (!isOpened)
+        {
+            isOpened = true;
+            animator.SetBool("isOpen", true);
+        }
     }
-    
+
     public void HideToken()
     {
-        transform.Rotate(Vector3.right, -180);
+        if (isOpened)
+        {
+            isOpened = false;
+            animator.SetBool("isOpen", false);
+        }
     }
-    
+
     public void MatchToken()
     {
         Destroy(gameObject);
