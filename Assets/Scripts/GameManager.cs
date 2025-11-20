@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -28,6 +29,7 @@ public class GameManager : MonoBehaviour
     public AudioClip sfxFail;
     public AudioClip sfxWin;
     public AudioClip sfxNewRecord;
+    public AudioClip backgroundMusic;
 
     private AudioSource audioSource;
 
@@ -43,9 +45,9 @@ public class GameManager : MonoBehaviour
         int diff = MainMenuManager.selectedDifficulty;
         switch (diff)
         {
-            case 0: rows = 2; cols = 3; break;
-            case 1: rows = 4; cols = 4; break;
-            case 2: rows = 4; cols = 6; break;
+            case 0: rows = 3; cols = 2; break;
+            case 1: rows = 4; cols = 2; break;
+            case 2: rows = 4; cols = 3; break;
         }
 
         numTokensOpened = 0;
@@ -100,6 +102,13 @@ public class GameManager : MonoBehaviour
         // Inici cronòmetre
         HUDManager.instance.StartTimer();
         audioSource = GetComponent<AudioSource>();
+        
+        // Música de fons
+        AudioSource musicSource = gameObject.AddComponent<AudioSource>();
+        musicSource.clip = backgroundMusic;
+        musicSource.loop = true;
+        musicSource.volume = 0.4f;
+        musicSource.Play();
     }
 
     public void TokenPressed(string name)
@@ -213,5 +222,10 @@ public class GameManager : MonoBehaviour
         if (revealUsed) return;
         revealUsed = true;
         StartCoroutine(RevealCoroutine());
+    }
+    
+    public void ReturnToMainMenu()
+    {
+        SceneManager.LoadScene("MainMenu");
     }
 }

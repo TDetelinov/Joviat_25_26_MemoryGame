@@ -3,57 +3,75 @@ using UnityEngine;
 
 public class Token : MonoBehaviour
 {
-    private GameManager gameManager;
+    [HideInInspector] public GameManager gameManager;
     public MeshRenderer mr;
-    public Animator animator;
+    public bool isRevealed = false;
+    public bool isMatched = false;
 
-    private bool isOpened = false;
-
-    void Awake()
-    {
-        if (mr == null)
-        {
-            mr = GetComponent<MeshRenderer>();
-            if (mr == null)
-                mr = GetComponentInChildren<MeshRenderer>();
-        }
-
-        if (animator == null)
-            animator = GetComponent<Animator>();
-    }
+    private bool isFlipping = false;
 
     void Start()
     {
-        GameObject o = GameObject.FindGameObjectWithTag("GameManager");
-        if (o != null)
-            gameManager = o.GetComponent<GameManager>();
+        if (gameManager == null)
+            gameManager = GameObject.FindGameObjectWithTag("GameManager").GetComponent<GameManager>();
     }
 
     void OnMouseDown()
     {
-        gameManager.TokenPressed(gameObject.name);
+        if (!isFlipping && !isMatched)
+            gameManager.TokenPressed(gameObject.name);
     }
 
     public void ShowToken()
     {
-        if (!isOpened)
-        {
-            isOpened = true;
-            animator.SetBool("isOpen", true);
-        }
+        if (!isRevealed)
+            StartCoroutine(FlipTo(true));
     }
 
     public void HideToken()
     {
-        if (isOpened)
-        {
-            isOpened = false;
-            animator.SetBool("isOpen", false);
-        }
+        if (isRevealed)
+            StartCoroutine(FlipTo(false));
     }
 
     public void MatchToken()
     {
+        isMatched = true;
+        StartCoroutine(Disappear());
+    }
+
+    private IEnumerator FlipTo(bool show)
+    {
+        isFlipping = true;
+        float duration = 0.3f;
+        float time = 0f;
+        Quaternion startRot = transform.rotation;
+        Quaternion endRot = show ? Quaternion.Euler(180, 0, 0) : Quaternion.identity;
+
+        while (time < duration)
+        {
+            time += Time.deltaTime;
+            transform.rotation = Quaternion.Slerp(startRot, endRot, time / duration);
+            yield return null;
+        }
+
+        transform.rotation = endRot;
+        isRevealed = show;
+        isFlipping = false;
+    }
+
+    private IEnumerator Disappear()
+    {
+        float t = 0f;
+        float duration = 0.5f;
+        Vector3 start = transform.localScale;
+        Vector3 end = Vector3.zero;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            transform.localScale = Vector3.Lerp(start, end, t / duration);
+            yield return null;
+        }
         Destroy(gameObject);
     }
 }
